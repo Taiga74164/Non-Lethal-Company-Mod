@@ -1,8 +1,10 @@
 ﻿using System.Collections;
+using System.Reflection;
 using BepInEx;
 using HarmonyLib;
 using GameNetcodeStuff;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -33,6 +35,9 @@ public class Main : BaseUnityPlugin
     private float _grabDistance = 5.0f;
 
     private string _credits = "0";
+
+    private bool _showRebind;
+    private Vector2 _inputPosition = Vector2.zero;
 
     #endregion
 
@@ -127,10 +132,26 @@ public class Main : BaseUnityPlugin
 
         #endregion
 
+        #region Key Rebinding
+
+        var rebindText = _showRebind ? "Hide" : "Show";
+        if (GUILayout.Button($"{rebindText} Key Rebinding"))
+            _showRebind = !_showRebind;
+
+        if (_showRebind)
+        {
+            _inputPosition = GUILayout.BeginScrollView(
+                _inputPosition, GUILayout.Height(300));
+            InputUtils.ShowBindings();
+            GUILayout.EndScrollView();
+        }
+
+        #endregion
+
         GUILayout.Space(10.0f);
         GUILayout.Label("Scrap Lists: (T: Teleport), (+/-: Change Value)");
 
-        _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(300));
+        _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(100));
         GUILayout.BeginVertical();
         DrawTable();
         GUILayout.EndVertical();
@@ -488,5 +509,82 @@ public static class SceneUtils
     public static bool InScene(string sceneName)
     {
         return SceneManager.GetActiveScene().name == sceneName;
+    }
+}
+
+public static class InputUtils
+{
+    private static readonly List<InputAction> _actions = new();
+
+    /// <summary>
+    /// Fetches the name of the binding for an input action.
+    /// </summary>
+    /// <param name="action">The action.</param>
+    /// <returns>The name of the binding.</returns>
+    public static string GetBindingName(this InputAction action)
+    {
+        return action.GetBindingDisplayString(action.GetBindingIndex());
+    }
+
+    /// <summary>
+    /// Resolves all re-bindable actions.
+    /// </summary>
+    public static void ResolveActions()
+    {
+        var playerActions = GameNetworkManager.Instance
+            .localPlayerController.playerActions;
+
+        foreach (var field in typeof(PlayerActions).GetFields(
+                     BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+            if (field.FieldType != typeof(InputAction))
+                continue;
+
+            if (field.GetValue(playerActions)
+                is InputAction action) _actions.Add(action);
+        }
+    }
+
+    /// <summary>
+    /// Shows all re-bindable actions in a GUI.
+    /// </summary>
+    public static void ShowBindings()
+    {
+        // Check if actions are resolved.
+        if (_actions.Count == 0)
+            ResolveActions();
+
+        foreach (var action in _actions.Where(action => GUILayout.Button(
+                     $"Rebind {action.name} ({action.GetBindingName()})")))
+        {
+            RebindAction(action);
+        }
+    }
+
+    /// <summary>
+    /// Rebinds an input action.
+    /// </summary>
+    /// <param name="action">The action to rebind.</param>
+    private static void RebindAction(InputAction action)
+    {
+        HUDManager.Instance.AddTextToChatOnServer("Press to rebind action.");
+
+        action.Disable();
+        var operation = action.PerformInteractiveRebinding()
+            .WithControlsExcluding("Mouse")
+            .OnMatchWaitForAnother(0.1f)
+            .Start();
+
+        operation.OnComplete(rebind =>
+        {
+            action.Enable();
+            rebind.Dispose();
+        });
+
+        operation.OnCancel(rebind =>
+        {
+            action.Enable();
+            rebind.Dispose();
+        });
     }
 }
