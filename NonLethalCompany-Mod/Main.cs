@@ -1,8 +1,10 @@
-﻿using BepInEx;
+﻿using System.Collections;
+using BepInEx;
 using HarmonyLib;
 using GameNetcodeStuff;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace NonLethalCompany_Mod;
 
@@ -40,11 +42,13 @@ public class Main : BaseUnityPlugin
         Harmony.CreateAndPatchAll(typeof(PlayerControllerBPatch));
     }
 
+    private void Start()
+    {
+        StartCoroutine(SkipOptions());
+    }
+
     private void Update()
     {
-        if (_showMenu)
-            Focused = false;
-
         UpdateInput();
 
         HandleNoClip();
@@ -349,7 +353,10 @@ public class Main : BaseUnityPlugin
     private void UpdateInput()
     {
         if (UnityInput.Current.GetKeyUp(KeyCode.Insert))
+        {
             _showMenu = !_showMenu;
+            Focused = !_showMenu;
+        }
     }
 
     private Terminal? GetTerminal()
@@ -359,6 +366,30 @@ public class Main : BaseUnityPlugin
 
         var obj = GameObject.FindObjectOfType<Terminal>();
         return obj == null ? null : obj.GetComponent<Terminal>();
+    }
+
+    /// <summary>
+    /// Waits for the launch options screen to appear.
+    /// Automatically selects 'Online' when it appears.
+    /// </summary>
+    private static IEnumerator SkipOptions()
+    {
+        // Wait for launch options to appear.
+        while (!SceneUtils.InScene(Constants.LaunchOptionsScene))
+        {
+            yield return new WaitForSeconds(2);
+        }
+
+        // Fetch the 'Online' button.
+        GameObject onlineButton;
+        while ((onlineButton = GameObject.Find("/Canvas/GameObject/LANOrOnline/OnlineButton")) == null)
+        {
+            yield return new WaitForSeconds(2);
+        }
+
+        // Emulate clicking the 'Online' button.
+        var button = onlineButton.GetComponent<Button>();
+        button.onClick.Invoke();
     }
 
     private int Credits
@@ -439,5 +470,23 @@ public class PlayerControllerBPatch
         //     return (bool)originalMethod.Invoke(__instance, null)!;
 
         return true;
+    }
+}
+
+public static class Constants
+{
+    public const string LaunchOptionsScene = "InitSceneLaunchOptions";
+}
+
+public static class SceneUtils
+{
+    /// <summary>
+    /// Method to check if the current scene is the specified scene.
+    /// </summary>
+    /// <param name="sceneName">The name of the scene.</param>
+    /// <returns>True if the scene name matches the active scene.</returns>
+    public static bool InScene(string sceneName)
+    {
+        return SceneManager.GetActiveScene().name == sceneName;
     }
 }
