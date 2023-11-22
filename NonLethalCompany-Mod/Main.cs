@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using BepInEx;
+﻿using BepInEx;
 using HarmonyLib;
 using GameNetcodeStuff;
 using UnityEngine;
@@ -7,27 +6,27 @@ using UnityEngine.SceneManagement;
 
 namespace NonLethalCompany_Mod
 {
-    [BepInPlugin(PluginInfo.PLUGIN_ID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+    [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     public class Main : BaseUnityPlugin
     {
         #region GUI Properties
 
-        private bool _showMenu = false;
+        private bool _showMenu;
         private Vector2 _scrollPosition = Vector2.zero;
-        
+
         private float _movementSpeed = 4.6f;
 
         private float _noClipSpeed = 5.0f;
-        private bool _setNoClip = false;
+        private bool _setNoClip;
         // private bool _hasDisabledCollider = false;
 
-        public static bool SetNoFallDamage = false;
-        
-        private bool _setUnlimitedSprint = false;
+        public static bool SetNoFallDamage;
 
-        private bool _setNoWeight = false;
+        private bool _setUnlimitedSprint;
 
-        public static bool SetGodMode = false;
+        private bool _setNoWeight;
+
+        public static bool SetGodMode;
 
         private float _grabDistance = 5.0f;
 
@@ -39,7 +38,6 @@ namespace NonLethalCompany_Mod
         {
              Logger.LogMessage("\u001b[31mMOD LOADED WOW!!!!!!!!!!!!!!\u001b[0m");
              Harmony.CreateAndPatchAll(typeof(PlayerControllerBPatch));
-             // Screen.SetResolution(1920, 1080, FullScreenMode.Windowed, 60);
         }
 
         private void Update()
@@ -48,7 +46,7 @@ namespace NonLethalCompany_Mod
                 Focused = false;
 
             UpdateInput();
-            
+
             HandleNoClip();
             HandleUnlimitedSprint();
             HandleNoWeight();
@@ -60,84 +58,84 @@ namespace NonLethalCompany_Mod
         {
             if (!_showMenu)
                 return;
-            
+
             GUI.Box(new Rect(0, 0, 400, 700), "Non-Lethal Company Mod Menu");
 
             GUILayout.BeginArea(new Rect(10, 40, 380, 700));
-            
+
             #region Movement Speed
-            
+
             GUILayout.Label("Movement Speed: " + _movementSpeed);
             _movementSpeed = GUILayout.HorizontalSlider(_movementSpeed, 4.6f, 100.0f);
             if (GUILayout.Button("Set Movement Speed"))
                 HandleMovementSpeed();
-            
+
             #endregion
 
             #region No Clip
-            
+
             _setNoClip = GUILayout.Toggle(_setNoClip, "No Clip");
             if (_setNoClip)
             {
                 GUILayout.Label("No Clip Speed: " + _noClipSpeed);
                 _noClipSpeed = GUILayout.HorizontalSlider(_noClipSpeed, 1, 50);
             }
-            
+
             #endregion
 
             #region No Fall Damage
-            
+
             SetNoFallDamage = GUILayout.Toggle(SetNoFallDamage, "No Fall Damage");
-            
+
             #endregion
 
             #region Unlimited Sprint
-            
+
             _setUnlimitedSprint = GUILayout.Toggle(_setUnlimitedSprint, "Unlimited Sprint");
-            
+
             #endregion
 
             #region No Weight
-            
+
             _setNoWeight = GUILayout.Toggle(_setNoWeight, "No Weight");
-            
+
             #endregion
 
             #region God Mode
-            
+
             SetGodMode = GUILayout.Toggle(SetGodMode, "God Mode");
-            
+
             #endregion
 
             #region Grab Distance
-            
+
             GUILayout.Label("Grab Distance: " + _grabDistance);
             _grabDistance = GUILayout.HorizontalSlider(_grabDistance, 5, 100);
-            
+
             #endregion
-            
+
             #region Credits
 
             GUILayout.Label("Current Credits: " + Credits);
             _credits = GUILayout.TextField(_credits);
             if (GUILayout.Button("Set Credits"))
                 HandleCredits();
-            
+
             #endregion
 
             GUILayout.Space(10.0f);
             GUILayout.Label("Scrap Lists: (T: Teleport), (+/-: Change Value)");
-            
+
             _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(300));
             GUILayout.BeginVertical();
             DrawTable();
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
             GUILayout.Space(10.0f);
-            
+
             GUILayout.EndArea();
         }
-        
+
         private void DrawTable()
         {
             GUILayout.BeginHorizontal();
@@ -150,32 +148,32 @@ namespace NonLethalCompany_Mod
             // _showInShip = GUILayout.Toggle(_showInShip, "Show In Ship");
             // _showHeld = GUILayout.Toggle(_showHeld, "Show Held");
             // GUILayout.EndHorizontal();
-            
+
             var propList = GameObject.FindGameObjectsWithTag("PhysicsProp");
             if (propList == null || propList.Length == 0)
                 return;
-            
+
             foreach (var prop in propList)
             {
                 if (prop == null)
                     continue;
-            
+
                 var player = GameNetworkManager.Instance.localPlayerController;
                 if (player == null)
                     continue;
-                
+
                 var physicsPropComp = prop.GetComponent<PhysicsProp>();
                 if (physicsPropComp == null)
                     continue;
-                
+
                 var scanNodeComp = prop.GetComponentInChildren<ScanNodeProperties>();
                 if (scanNodeComp == null)
                     continue;
-                
+
                 var grabbableObj = physicsPropComp as GrabbableObject;
                 if (grabbableObj == null)
                     continue;
-                
+
                 var actualName = scanNodeComp.headerText;
                 var distance = Vector3.Distance(prop.transform.position, player.transform.position);
                 var scrapValue = grabbableObj.scrapValue;
@@ -192,7 +190,7 @@ namespace NonLethalCompany_Mod
                     grabbableObj.SetScrapValue(scrapValue + 1);
                 if (GUILayout.Button("-"))
                     grabbableObj.SetScrapValue(scrapValue - 1);
-                
+
                 GUILayout.EndHorizontal();
             }
 
@@ -200,19 +198,19 @@ namespace NonLethalCompany_Mod
             if (GUILayout.Button("Teleport to Ship"))
                 TeleportPlayer(StartOfRound.Instance.shipDoorNode.transform.position);// StartCoroutine(TeleportToShipCoroutine());
         }
-        
+
         private void HandleMovementSpeed()
         {
             if (!IsInGameScene())
                 return;
-            
+
             var player = GameNetworkManager.Instance.localPlayerController;
             if (player == null)
                 return;
-            
+
             player.movementSpeed = _movementSpeed;
         }
-        
+
         private void HandleNoClip()
         {
             if (!IsInGameScene())
@@ -221,7 +219,7 @@ namespace NonLethalCompany_Mod
             var player = GameNetworkManager.Instance.localPlayerController;
             if (player == null)
                 return;
-            
+
             var camera = player.gameplayCamera.transform;
             if (camera == null)
                 return;
@@ -229,7 +227,7 @@ namespace NonLethalCompany_Mod
             var collider = player.GetComponent<CharacterController>() as Collider;
             if (collider == null)
                 return;
-            
+
             if (_setNoClip)
             {
                 // switch (_hasDisabledCollider)
@@ -247,19 +245,19 @@ namespace NonLethalCompany_Mod
 
                 // Horizontal
                 if (UnityInput.Current.GetKey(KeyCode.W))
-                    dir = dir + camera.forward;
+                    dir += camera.forward;
                 if (UnityInput.Current.GetKey(KeyCode.S))
-                    dir = dir + (camera.forward * -1);
+                    dir += camera.forward * -1;
                 if (UnityInput.Current.GetKey(KeyCode.D))
-                    dir = dir + camera.right;
+                    dir += camera.right;
                 if (UnityInput.Current.GetKey(KeyCode.A))
-                    dir = dir + (camera.right * -1);
+                    dir += camera.right * -1;
 
                 // Vertical
                 if (UnityInput.Current.GetKey(KeyCode.Space))
-                    dir.y = dir.y + camera.up.y;
+                    dir.y += camera.up.y;
                 if (UnityInput.Current.GetKey(KeyCode.LeftControl))
-                    dir.y = dir.y + (camera.up.y * -1);
+                    dir.y += camera.up.y * -1;
 
                 var prevPos = player.transform.localPosition;
                 if (prevPos.Equals(Vector3.zero))
@@ -272,10 +270,10 @@ namespace NonLethalCompany_Mod
             {
                 // if (!_hasDisabledCollider)
                 //     return;
-                
+
                 collider.enabled = true;
                 // _hasDisabledCollider = false;
-                
+
             }
         }
 
@@ -283,7 +281,7 @@ namespace NonLethalCompany_Mod
         {
             if (!IsInGameScene())
                 return;
-            
+
             if (!_setUnlimitedSprint)
                 return;
 
@@ -294,12 +292,12 @@ namespace NonLethalCompany_Mod
             player.sprintMeter = 100.0f;
             player.isExhausted = false;
         }
-        
+
         private void HandleNoWeight()
         {
             if (!IsInGameScene())
                 return;
-            
+
             if (!_setNoWeight)
                 return;
 
@@ -309,12 +307,12 @@ namespace NonLethalCompany_Mod
 
             player.carryWeight = 1.0f;
         }
-        
+
         private void HandleGodMode()
         {
             if (!IsInGameScene())
                 return;
-            
+
             if (!SetGodMode)
                 return;
 
@@ -341,13 +339,13 @@ namespace NonLethalCompany_Mod
         {
             if (!IsInGameScene())
                 return;
-            
+
             if (!int.TryParse(_credits, out var credits))
                 return;
 
             Credits = credits;
         }
-        
+
         private void UpdateInput()
         {
             if (UnityInput.Current.GetKeyUp(KeyCode.Insert))
@@ -358,7 +356,7 @@ namespace NonLethalCompany_Mod
         {
             if (!IsInGameScene())
                 return null;
-            
+
             var obj = GameObject.FindObjectOfType<Terminal>();
             return obj == null ? null : obj.GetComponent<Terminal>();
         }
@@ -393,10 +391,10 @@ namespace NonLethalCompany_Mod
 
             player.transform.position = position;
         }
-        
+
         private static bool Focused
         {
-            get => Cursor.lockState == CursorLockMode.Locked;
+            // get => Cursor.lockState == CursorLockMode.Locked;
             set
             {
                 Cursor.lockState = value ? CursorLockMode.Locked : CursorLockMode.None;
@@ -404,7 +402,7 @@ namespace NonLethalCompany_Mod
             }
         }
     }
-    
+
     [HarmonyPatch(typeof(PlayerControllerB))]
     public class PlayerControllerBPatch
     {
@@ -414,13 +412,13 @@ namespace NonLethalCompany_Mod
         {
             if (!Main.SetNoFallDamage)
                 return;
-            
+
             if (!fallDamage && causeOfDeath != CauseOfDeath.Gravity)
                 return;
-            
+
             damageNumber = 0;
         }
-        
+
         [HarmonyPatch(nameof(PlayerControllerB.KillPlayer))]
         [HarmonyPrefix]
         private static void KillPlayerPrefix(ref CauseOfDeath causeOfDeath)
@@ -428,7 +426,7 @@ namespace NonLethalCompany_Mod
             if (Main.SetGodMode && causeOfDeath is CauseOfDeath.Suffocation or CauseOfDeath.Drowning)
                 return;
         }
-        
+
         [HarmonyPatch("AllowPlayerDeath")]
         [HarmonyPrefix]
         private static bool AllowPlayerDeathPrefix(PlayerControllerB __instance)
@@ -444,4 +442,3 @@ namespace NonLethalCompany_Mod
         }
     }
 }
-
