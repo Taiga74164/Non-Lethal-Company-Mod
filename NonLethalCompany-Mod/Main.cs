@@ -63,7 +63,7 @@ public class Main : BaseUnityPlugin
         if (!_showMenu)
             return;
 
-        GUI.Box(new Rect(0, 0, 400, 700), "Non-Lethal Company Mod Menu");
+        GUI.Box(new Rect(5, 5, 400, 700), "Non-Lethal Company Mod Menu");
 
         GUILayout.BeginArea(new Rect(10, 40, 380, 700));
 
