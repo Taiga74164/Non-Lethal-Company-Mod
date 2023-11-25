@@ -16,7 +16,8 @@ public class Main : BaseUnityPlugin
     #region GUI Properties
 
     private bool _showMenu;
-    private Vector2 _scrollPosition = Vector2.zero;
+    private Vector2 _scrapListScrollPosition = Vector2.zero;
+    private Vector2 _enemyListScrollPosition = Vector2.zero;
 
     private float _movementSpeed = 4.6f;
 
@@ -148,20 +149,38 @@ public class Main : BaseUnityPlugin
 
         #endregion
 
-        GUILayout.Space(10.0f);
-        GUILayout.Label("Scrap Lists: (T: Teleport), (+/-: Change Value)");
+        #region Scrap List
 
-        _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(100));
+        GUILayout.Space(10.0f);
+        GUILayout.Label("Scrap List: (T: Teleport), (+/-: Change Value)");
+
+        _scrapListScrollPosition = GUILayout.BeginScrollView(_scrapListScrollPosition, GUILayout.Height(100));
         GUILayout.BeginVertical();
-        DrawTable();
+        DrawScrapTable();
         GUILayout.EndVertical();
         GUILayout.EndScrollView();
         GUILayout.Space(10.0f);
 
+        #endregion
+
+        #region Enemy List
+
+        GUILayout.Space(10.0f);
+        GUILayout.Label("Enemy List: (T: Teleport), (K: Kill)");
+
+        _enemyListScrollPosition = GUILayout.BeginScrollView(_enemyListScrollPosition, GUILayout.Height(100));
+        GUILayout.BeginVertical();
+        DrawEnemyTable();
+        GUILayout.EndVertical();
+        GUILayout.EndScrollView();
+        GUILayout.Space(10.0f);
+
+        #endregion
+        
         GUILayout.EndArea();
     }
 
-    private void DrawTable()
+    private void DrawScrapTable()
     {
         GUILayout.BeginHorizontal();
         GUILayout.Label("Name", GUILayout.MinWidth(60));
@@ -202,7 +221,7 @@ public class Main : BaseUnityPlugin
             var actualName = scanNodeComp.headerText;
             var distance = Vector3.Distance(prop.transform.position, player.transform.position);
             var scrapValue = grabbableObj.scrapValue;
-            if (scrapValue == 1 || !grabbableObj.grabbable || grabbableObj.isHeld)
+            if (scrapValue == 1 || !grabbableObj.grabbable || grabbableObj.isHeld || grabbableObj is { isInShipRoom: true, isInElevator: true })
                 continue;
 
             GUILayout.BeginHorizontal();
@@ -222,6 +241,46 @@ public class Main : BaseUnityPlugin
         // Seems like collider must be disabled and player must go through the door for items to be dropped.
         if (GUILayout.Button("Teleport to Ship"))
             TeleportPlayer(StartOfRound.Instance.shipDoorNode.transform.position);// StartCoroutine(TeleportToShipCoroutine());
+    }
+
+    private void DrawEnemyTable()
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Name", GUILayout.MinWidth(60));
+        GUILayout.Label("Distance(m)", GUILayout.MinWidth(20));
+        GUILayout.Label("Command", GUILayout.MinWidth(30));
+        GUILayout.EndHorizontal();
+
+        var enemyAIs = GameObject.FindObjectsOfType<EnemyAI>();
+        if (enemyAIs == null)
+            return;
+
+        foreach (var enemy in enemyAIs)
+        {
+            if (enemy == null || enemy.isEnemyDead)
+                continue;
+            
+            var player = GameNetworkManager.Instance.localPlayerController;
+            if (player == null)
+                continue;
+            
+            var scanNodeComp = enemy.GetComponentInChildren<ScanNodeProperties>();
+            if (scanNodeComp == null)
+                continue;
+            
+            var actualName = scanNodeComp.headerText;
+            var distance = Vector3.Distance(enemy.transform.position, player.transform.position);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(actualName, GUILayout.MinWidth(120));
+            GUILayout.Label(distance.ToString("F2"), GUILayout.MinWidth(50));
+            if (GUILayout.Button("T"))
+                TeleportPlayer(enemy.transform.position);
+            if (GUILayout.Button("K"))
+                enemy.KillEnemy(true);
+
+            GUILayout.EndHorizontal();
+        }
     }
 
     private void HandleMovementSpeed()

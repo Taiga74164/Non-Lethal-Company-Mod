@@ -16,8 +16,9 @@
 - No Weight
 - God Mode
 - Grab Distance
-- Credits
-- Teleport to scraps / Change scrap value
+- Terminal Credits
+- Scrap List: Teleport to scraps / Change scrap value
+- Enemy List: Teleport to enemy / Kill enemy
 
 ## Building
 
