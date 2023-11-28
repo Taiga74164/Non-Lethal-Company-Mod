@@ -16,8 +16,10 @@ public class Main : BaseUnityPlugin
     #region GUI Properties
 
     private bool _showMenu;
+    private Vector2 _menuScrollPosition = Vector2.zero;
     private Vector2 _scrapListScrollPosition = Vector2.zero;
     private Vector2 _enemyListScrollPosition = Vector2.zero;
+    private Vector2 _playerListScrollPosition = Vector2.zero;
 
     private float _movementSpeed = 4.6f;
 
@@ -36,6 +38,8 @@ public class Main : BaseUnityPlugin
     private float _grabDistance = 5.0f;
 
     private string _credits = "0";
+    
+    private bool _setUnlimitedBatteries;
 
     private bool _showRebind;
     private Vector2 _inputPosition = Vector2.zero;
@@ -62,6 +66,7 @@ public class Main : BaseUnityPlugin
         HandleNoWeight();
         HandleGodMode();
         HandleGrabDistance();
+        HandleUnlimitedBatteries();
     }
 
     private void OnGUI()
@@ -72,7 +77,8 @@ public class Main : BaseUnityPlugin
         GUI.Box(new Rect(5, 5, 400, 700), "Non-Lethal Company Mod Menu");
 
         GUILayout.BeginArea(new Rect(10, 40, 380, 700));
-
+        _menuScrollPosition = GUILayout.BeginScrollView(_menuScrollPosition);
+        
         #region Movement Speed
 
         GUILayout.Label("Movement Speed: " + _movementSpeed);
@@ -117,6 +123,12 @@ public class Main : BaseUnityPlugin
 
         #endregion
 
+        #region Unlimited Batteries
+        
+        _setUnlimitedBatteries = GUILayout.Toggle(_setUnlimitedBatteries, "Unlimited Batteries");
+
+        #endregion
+
         #region Grab Distance
 
         GUILayout.Label("Grab Distance: " + _grabDistance);
@@ -132,7 +144,7 @@ public class Main : BaseUnityPlugin
             HandleCredits();
 
         #endregion
-
+        
         #region Key Rebinding
 
         var rebindText = _showRebind ? "Hide" : "Show";
@@ -177,6 +189,21 @@ public class Main : BaseUnityPlugin
 
         #endregion
         
+        #region Player List
+
+        GUILayout.Space(10.0f);
+        GUILayout.Label("Player List: (T: Teleport)");
+
+        _playerListScrollPosition = GUILayout.BeginScrollView(_playerListScrollPosition, GUILayout.Height(100));
+        GUILayout.BeginVertical();
+        DrawPlayerTable();
+        GUILayout.EndVertical();
+        GUILayout.EndScrollView();
+        GUILayout.Space(10.0f);
+
+        #endregion
+        
+        GUILayout.EndScrollView();
         GUILayout.EndArea();
     }
 
@@ -187,7 +214,7 @@ public class Main : BaseUnityPlugin
         GUILayout.Label("Distance(m)", GUILayout.MinWidth(20));
         GUILayout.Label("Value", GUILayout.MinWidth(30));
         GUILayout.EndHorizontal();
-
+        
         // GUILayout.BeginHorizontal("Options");
         // _showInShip = GUILayout.Toggle(_showInShip, "Show In Ship");
         // _showHeld = GUILayout.Toggle(_showHeld, "Show Held");
@@ -278,6 +305,44 @@ public class Main : BaseUnityPlugin
                 TeleportPlayer(enemy.transform.position);
             if (GUILayout.Button("K"))
                 enemy.KillEnemy(true);
+
+            GUILayout.EndHorizontal();
+        }
+    }
+
+    private void DrawPlayerTable()
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Name", GUILayout.MinWidth(60));
+        GUILayout.Label("Distance(m)", GUILayout.MinWidth(20));
+        GUILayout.Label("Command", GUILayout.MinWidth(30));
+        GUILayout.EndHorizontal();
+
+        var allPlayerObjs = StartOfRound.Instance.allPlayerObjects;
+        if (allPlayerObjs == null)
+            return;
+        
+        foreach (var allPlayerObj in allPlayerObjs)
+        {
+            var playerObj = allPlayerObj.GetComponent<PlayerControllerB>();
+            if (playerObj == null || playerObj.isPlayerDead || playerObj.IsOwner)
+                continue;
+
+            var player = GameNetworkManager.Instance.localPlayerController;
+            if (player == null)
+                continue;
+
+            var actualName = playerObj.playerUsername;
+            var distance = Vector3.Distance(playerObj.transform.position, player.transform.position);
+
+            if (actualName.Contains("Player #"))
+                continue;
+            
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(actualName, GUILayout.MinWidth(120));
+            GUILayout.Label(distance.ToString("F2"), GUILayout.MinWidth(50));
+            if (GUILayout.Button("T"))
+                TeleportPlayer(playerObj.transform.position);
 
             GUILayout.EndHorizontal();
         }
@@ -406,6 +471,35 @@ public class Main : BaseUnityPlugin
 
         player.isPlayerDead = false;
     }
+    
+    private void HandleUnlimitedBatteries()
+    {
+        if (!IsInGameScene())
+            return;
+
+        if (!_setUnlimitedBatteries)
+            return;
+
+        var grabbableObjs = GameObject.FindObjectsOfType<GrabbableObject>();
+        if (grabbableObjs == null || grabbableObjs.Length == 0)
+            return;
+
+        foreach (var grabbableObj in grabbableObjs)
+        {
+            if (grabbableObj == null)
+                continue;
+            
+            var player = GameNetworkManager.Instance.localPlayerController;
+            if (player == null)
+                continue;
+
+            if (!grabbableObj.itemProperties.requiresBattery || grabbableObj.playerHeldBy != player)
+                continue;
+            
+            grabbableObj.insertedBattery.empty = false;
+            grabbableObj.insertedBattery.charge = 1.0f;
+        }
+    }
 
     private void HandleGrabDistance()
     {
@@ -500,7 +594,7 @@ public class Main : BaseUnityPlugin
         if (player == null)
             return;
 
-        player.transform.position = position;
+        player.TeleportPlayer(position);
     }
 
     private static bool Focused
