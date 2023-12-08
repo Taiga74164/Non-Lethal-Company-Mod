@@ -15,6 +15,8 @@
 - Unlimited Sprint
 - No Weight
 - God Mode
+- No Invisible Enemies (Ghost Girl)
+- ESP
 - Grab Distance
 - Terminal Credits
 - Scrap List: Teleport to scraps / Change scrap value

@@ -7,10 +7,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.Drawing;
 
 namespace NonLethalCompany_Mod;
 
 [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+
 public class Main : BaseUnityPlugin
 {
     #region GUI Properties
@@ -29,6 +31,8 @@ public class Main : BaseUnityPlugin
 
     public static bool SetNoFallDamage;
 
+    public static bool NoInvisible;
+
     private bool _setUnlimitedSprint;
 
     private bool _setNoWeight;
@@ -44,12 +48,21 @@ public class Main : BaseUnityPlugin
     private bool _showRebind;
     private Vector2 _inputPosition = Vector2.zero;
 
+    private bool _setESP;
+    private bool _setESPColor = true;
+    private bool _drawLine = true;
+    private bool _drawDistance;
+    private bool _drawName = true;
+    private bool _setESPEnemy = true;
+    private bool _setESPScrap = true;
+
     #endregion
 
     private void Awake()
     {
         Logger.LogMessage("\u001b[31mMOD LOADED WOW!!!!!!!!!!!!!!\u001b[0m");
         Harmony.CreateAndPatchAll(typeof(PlayerControllerBPatch));
+        Harmony.CreateAndPatchAll(typeof(EnemyAIPatch));
     }
 
     private void Start()
@@ -71,6 +84,8 @@ public class Main : BaseUnityPlugin
 
     private void OnGUI()
     {
+        if (_setESP) HandleESP();
+
         if (!_showMenu)
             return;
 
@@ -126,6 +141,27 @@ public class Main : BaseUnityPlugin
         #region Unlimited Batteries
         
         _setUnlimitedBatteries = GUILayout.Toggle(_setUnlimitedBatteries, "Unlimited Batteries");
+
+        #endregion
+
+        #region No Invisible Enemy
+
+        NoInvisible = GUILayout.Toggle(NoInvisible, "No Invisible Enemies");
+
+        #endregion
+
+        #region ESP
+
+        _setESP = GUILayout.Toggle(_setESP, "ESP");
+        if (_setESP)
+        {
+            _setESPEnemy = GUILayout.Toggle(_setESPEnemy, "ESP Enemy");
+            _setESPScrap = GUILayout.Toggle(_setESPScrap, "ESP Scrap");
+            _setESPColor = GUILayout.Toggle(_setESPColor, "Different ESP Color");
+            _drawLine = GUILayout.Toggle(_drawLine, "Draw Line");
+            _drawName = GUILayout.Toggle(_drawName, "Draw Name");
+            _drawDistance = GUILayout.Toggle(_drawDistance, "Draw Distance");
+        }
 
         #endregion
 
@@ -202,9 +238,103 @@ public class Main : BaseUnityPlugin
         GUILayout.Space(10.0f);
 
         #endregion
-        
+
         GUILayout.EndScrollView();
         GUILayout.EndArea();
+    }
+    private bool IsOnScreen(Vector3 position)
+    {
+        if (position.x < 0f || position.y < 0f || position.z < 0f) return false;
+        return true;
+    }
+
+    private void HandleESP()
+    {
+        var player = GameNetworkManager.Instance.localPlayerController;
+        if (player == null) return;
+
+        var camera = player.gameplayCamera;
+        if (camera == null)
+            return;
+
+        var propList = GameObject.FindGameObjectsWithTag("PhysicsProp");
+        if (propList == null || propList.Length == 0)
+            return;
+
+        var ScreenScale = Screen.width / 864f;
+
+        foreach (var prop in propList)
+        {
+            if (!_setESPScrap) break;
+
+            if (prop == null)
+                continue;
+
+            var physicsPropComp = prop.GetComponent<PhysicsProp>();
+            if (physicsPropComp == null)
+                continue;
+
+            var grabbableObj = physicsPropComp as GrabbableObject;
+            if (grabbableObj == null)
+                continue;
+
+            var actualName = grabbableObj.itemProperties.itemName;
+            var distance = Vector3.Distance(player.transform.position, prop.transform.position);
+
+            Vector3 pos = prop.transform.position;
+            Vector3 screenPos = camera.WorldToScreenPoint(pos);
+            if (!IsOnScreen(screenPos))
+                continue;
+
+            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale, (float)Screen.height - (screenPos.y * ScreenScale));
+            UnityEngine.Color color = _setESPColor ? UnityEngine.Color.blue : UnityEngine.Color.white;
+            
+            string renderTxt = "";
+            if (_drawName)
+                renderTxt += actualName;
+
+            if (_drawDistance)
+                renderTxt += " | " + Math.Round(distance) + "m";
+
+            if (renderTxt != "")
+                Render.DrawString(new Vector2(vec2Pos.x, vec2Pos.y - 20f), renderTxt, true);
+            if (_drawLine)
+                Render.DrawLine(new Vector2((float)(Screen.width / 2), (float)(Screen.height - 1)), vec2Pos, color, 2f);
+        }
+
+        var enemyAIs = GameObject.FindObjectsOfType<EnemyAI>();
+        if (enemyAIs == null)
+            return;
+
+        foreach (var enemy in enemyAIs)
+        {
+            if (!_setESPEnemy) break;
+
+            if (enemy == null || enemy.isEnemyDead)
+                continue;
+
+            var actualName = enemy.enemyType.enemyName;
+            var distance = Vector3.Distance(player.transform.position, enemy.transform.position);
+
+            Vector3 pos = enemy.transform.position;
+            Vector3 screenPos = camera.WorldToScreenPoint(pos);
+            if (!IsOnScreen(screenPos))
+                continue;
+
+            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale, (float)Screen.height - (screenPos.y * ScreenScale));
+            UnityEngine.Color color = _setESPColor ? UnityEngine.Color.red : UnityEngine.Color.white;
+            string renderTxt = "";
+            if (_drawName)
+                renderTxt += actualName;
+
+            if (_drawDistance)
+                renderTxt += " | " + Math.Round(distance) + "m";
+
+            if (renderTxt != "")
+                Render.DrawString(new Vector2(vec2Pos.x, vec2Pos.y - 20f), renderTxt, true);
+            if (_drawLine)
+                Render.DrawLine(new Vector2((float)(Screen.width / 2), (float)(Screen.height-1)), vec2Pos, color, 2f);
+        }
     }
 
     private void DrawScrapTable()
@@ -291,11 +421,7 @@ public class Main : BaseUnityPlugin
             if (player == null)
                 continue;
             
-            var scanNodeComp = enemy.GetComponentInChildren<ScanNodeProperties>();
-            if (scanNodeComp == null)
-                continue;
-            
-            var actualName = scanNodeComp.headerText;
+            var actualName = enemy.enemyType.enemyName;
             var distance = Vector3.Distance(enemy.transform.position, player.transform.position);
 
             GUILayout.BeginHorizontal();
@@ -644,6 +770,21 @@ public class PlayerControllerBPatch
         //     return (bool)originalMethod.Invoke(__instance, null)!;
 
         return true;
+    }
+}
+
+
+[HarmonyPatch(typeof(EnemyAI))]
+public class EnemyAIPatch
+{
+    [HarmonyPatch(nameof(EnemyAI.EnableEnemyMesh))]
+    [HarmonyPrefix]
+    private static void EnableEnemyMeshPrefix(ref bool enable)
+    {
+        if (!Main.NoInvisible)
+            return;
+
+        enable = true;
     }
 }
 
