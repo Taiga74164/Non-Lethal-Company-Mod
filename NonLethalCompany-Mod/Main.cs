@@ -7,7 +7,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using System.Drawing;
 
 namespace NonLethalCompany_Mod;
 
@@ -287,7 +286,7 @@ public class Main : BaseUnityPlugin
                 continue;
 
             Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale, (float)Screen.height - (screenPos.y * ScreenScale));
-            UnityEngine.Color color = _setESPColor ? UnityEngine.Color.blue : UnityEngine.Color.white;
+            Color color = _setESPColor ? Color.blue : Color.white;
             
             string renderTxt = "";
             if (_drawName)
@@ -322,7 +321,7 @@ public class Main : BaseUnityPlugin
                 continue;
 
             Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale, (float)Screen.height - (screenPos.y * ScreenScale));
-            UnityEngine.Color color = _setESPColor ? UnityEngine.Color.red : UnityEngine.Color.white;
+            Color color = _setESPColor ? Color.red : Color.white;
             string renderTxt = "";
             if (_drawName)
                 renderTxt += actualName;
