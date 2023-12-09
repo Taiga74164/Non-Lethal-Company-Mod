@@ -260,7 +260,7 @@ public class Main : BaseUnityPlugin
         if (propList == null || propList.Length == 0)
             return;
 
-        var ScreenScale = Screen.width / 864f;
+        var ScreenScale = new Vector2((float)Screen.width / camera.pixelWidth, (float)Screen.height / camera.pixelHeight);
 
         foreach (var prop in propList)
         {
@@ -285,7 +285,7 @@ public class Main : BaseUnityPlugin
             if (!IsOnScreen(screenPos))
                 continue;
 
-            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale, (float)Screen.height - (screenPos.y * ScreenScale));
+            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
             Color color = _setESPColor ? Color.blue : Color.white;
             
             string renderTxt = "";
@@ -320,7 +320,7 @@ public class Main : BaseUnityPlugin
             if (!IsOnScreen(screenPos))
                 continue;
 
-            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale, (float)Screen.height - (screenPos.y * ScreenScale));
+            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
             Color color = _setESPColor ? Color.red : Color.white;
             string renderTxt = "";
             if (_drawName)
