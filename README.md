@@ -3,6 +3,7 @@
 ### Requirements
 - [BepInEx](https://github.com/BepInEx/BepInEx)
 - `HideManagerGameObject` Set to `true` in BepInEx.cfg
+
 ### Usage
 
 1. Put DLL inside `\BepInEx\plugins`
