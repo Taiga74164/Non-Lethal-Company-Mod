@@ -241,9 +241,9 @@ public class Main : BaseUnityPlugin
         GUILayout.EndScrollView();
         GUILayout.EndArea();
     }
-    private bool IsOnScreen(Vector3 position)
+    private bool IsOnScreen(Vector3 position, Camera camera)
     {
-        if (position.x < 0f || position.y < 0f || position.z < 0f) return false;
+        if (position.x < 0f || position.x > camera.pixelWidth || position.y < 0f || position.y > camera.pixelHeight || position.z < 0f) return false;
         return true;
     }
 
@@ -252,11 +252,14 @@ public class Main : BaseUnityPlugin
         var player = GameNetworkManager.Instance.localPlayerController;
         if (player == null) return;
 
-        var camera = player.gameplayCamera;
+        var camera = player.isPlayerDead ? player.playersManager.spectateCamera : player.gameplayCamera;
         if (camera == null)
             return;
 
-        var propList = GameObject.FindGameObjectsWithTag("PhysicsProp");
+        var ScreenScale = new Vector2((float)Screen.width / camera.pixelWidth, (float)Screen.height / camera.pixelHeight);
+        var ScreenCenter = new Vector2((float)(Screen.width / 2), (float)(Screen.height - 1));
+
+        var propList = GameObject.FindObjectsOfType<GrabbableObject>();
         if (propList == null || propList.Length == 0)
             return;
 
@@ -266,24 +269,18 @@ public class Main : BaseUnityPlugin
         {
             if (!_setESPScrap) break;
 
-            if (prop == null)
+            if (prop == null || prop.isHeld || !prop.grabbable || prop.isInShipRoom || prop.isInElevator)
                 continue;
-
-            var physicsPropComp = prop.GetComponent<PhysicsProp>();
-            if (physicsPropComp == null)
-                continue;
-
-            var grabbableObj = physicsPropComp as GrabbableObject;
-            if (grabbableObj == null)
-                continue;
-
-            var actualName = grabbableObj.itemProperties.itemName;
-            var distance = Vector3.Distance(player.transform.position, prop.transform.position);
 
             Vector3 pos = prop.transform.position;
             Vector3 screenPos = camera.WorldToScreenPoint(pos);
-            if (!IsOnScreen(screenPos))
+            if (!IsOnScreen(screenPos, camera))
                 continue;
+
+            var scanNodeComp = prop.GetComponentInChildren<ScanNodeProperties>();
+
+            var actualName = scanNodeComp ? scanNodeComp.headerText : prop.itemProperties.itemName;
+            var distance = Vector3.Distance(player.transform.position, prop.transform.position);
 
             Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
             Color color = _setESPColor ? Color.blue : Color.white;
@@ -293,12 +290,12 @@ public class Main : BaseUnityPlugin
                 renderTxt += actualName;
 
             if (_drawDistance)
-                renderTxt += " | " + Math.Round(distance) + "m";
+                renderTxt += " | " + distance.ToString("F1") + "m";
 
             if (renderTxt != "")
                 Render.DrawString(new Vector2(vec2Pos.x, vec2Pos.y - 20f), renderTxt, true);
             if (_drawLine)
-                Render.DrawLine(new Vector2((float)(Screen.width / 2), (float)(Screen.height - 1)), vec2Pos, color, 2f);
+                Render.DrawLine(ScreenCenter, vec2Pos, color, 2f);
         }
 
         var enemyAIs = GameObject.FindObjectsOfType<EnemyAI>();
@@ -312,27 +309,30 @@ public class Main : BaseUnityPlugin
             if (enemy == null || enemy.isEnemyDead)
                 continue;
 
-            var actualName = enemy.enemyType.enemyName;
-            var distance = Vector3.Distance(player.transform.position, enemy.transform.position);
-
             Vector3 pos = enemy.transform.position;
             Vector3 screenPos = camera.WorldToScreenPoint(pos);
-            if (!IsOnScreen(screenPos))
+            if (!IsOnScreen(screenPos, camera))
                 continue;
+
+            var scanNodeComp = enemy.GetComponentInChildren<ScanNodeProperties>();
+
+            var actualName = scanNodeComp ? scanNodeComp.headerText : enemy.enemyType.enemyName;
+            var distance = Vector3.Distance(player.transform.position, enemy.transform.position);
 
             Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
             Color color = _setESPColor ? Color.red : Color.white;
+
             string renderTxt = "";
             if (_drawName)
                 renderTxt += actualName;
 
             if (_drawDistance)
-                renderTxt += " | " + Math.Round(distance) + "m";
+                renderTxt += " | " + distance.ToString("F1") + "m";
 
             if (renderTxt != "")
                 Render.DrawString(new Vector2(vec2Pos.x, vec2Pos.y - 20f), renderTxt, true);
             if (_drawLine)
-                Render.DrawLine(new Vector2((float)(Screen.width / 2), (float)(Screen.height-1)), vec2Pos, color, 2f);
+                Render.DrawLine(ScreenCenter, vec2Pos, color, 2f);
         }
     }
 
@@ -349,36 +349,26 @@ public class Main : BaseUnityPlugin
         // _showHeld = GUILayout.Toggle(_showHeld, "Show Held");
         // GUILayout.EndHorizontal();
 
-        var propList = GameObject.FindGameObjectsWithTag("PhysicsProp");
+        var propList = GameObject.FindObjectsOfType<GrabbableObject>();
         if (propList == null || propList.Length == 0)
             return;
 
         foreach (var prop in propList)
         {
-            if (prop == null)
+            if (prop == null || !prop.itemProperties.isScrap || !prop.grabbable || prop.isHeld || prop is { isInShipRoom: true, isInElevator: true })
                 continue;
 
             var player = GameNetworkManager.Instance.localPlayerController;
             if (player == null)
                 continue;
 
-            var physicsPropComp = prop.GetComponent<PhysicsProp>();
-            if (physicsPropComp == null)
-                continue;
-
             var scanNodeComp = prop.GetComponentInChildren<ScanNodeProperties>();
             if (scanNodeComp == null)
                 continue;
 
-            var grabbableObj = physicsPropComp as GrabbableObject;
-            if (grabbableObj == null)
-                continue;
-
             var actualName = scanNodeComp.headerText;
             var distance = Vector3.Distance(prop.transform.position, player.transform.position);
-            var scrapValue = grabbableObj.scrapValue;
-            if (scrapValue == 1 || !grabbableObj.grabbable || grabbableObj.isHeld || grabbableObj is { isInShipRoom: true, isInElevator: true })
-                continue;
+            var scrapValue = prop.scrapValue;
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(actualName, GUILayout.MinWidth(120));
@@ -387,9 +377,9 @@ public class Main : BaseUnityPlugin
             if (GUILayout.Button("T"))
                 TeleportPlayer(prop.transform.position);
             if (GUILayout.Button("+"))
-                grabbableObj.SetScrapValue(scrapValue + 1);
+                prop.SetScrapValue(scrapValue + 1);
             if (GUILayout.Button("-"))
-                grabbableObj.SetScrapValue(scrapValue - 1);
+                prop.SetScrapValue(scrapValue - 1);
 
             GUILayout.EndHorizontal();
         }
@@ -420,7 +410,9 @@ public class Main : BaseUnityPlugin
             if (player == null)
                 continue;
             
-            var actualName = enemy.enemyType.enemyName;
+            var scanNodeComp = enemy.GetComponentInChildren<ScanNodeProperties>();
+
+            var actualName = scanNodeComp ? scanNodeComp.headerText : enemy.enemyType.enemyName;
             var distance = Vector3.Distance(enemy.transform.position, player.transform.position);
 
             GUILayout.BeginHorizontal();
@@ -468,6 +460,8 @@ public class Main : BaseUnityPlugin
             GUILayout.Label(distance.ToString("F2"), GUILayout.MinWidth(50));
             if (GUILayout.Button("T"))
                 TeleportPlayer(playerObj.transform.position);
+            if (GUILayout.Button("K"))
+                playerObj.KillPlayer(Vector3.zero);
 
             GUILayout.EndHorizontal();
         }
