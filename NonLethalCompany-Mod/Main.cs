@@ -503,7 +503,7 @@ public class Main : BaseUnityPlugin
             if (GUILayout.Button("T"))
                 TeleportPlayer(enemy.transform.position);
             if (GUILayout.Button("K"))
-                enemy.KillEnemy(true);
+                enemy.KillEnemyServerRpc(false);
 
             GUILayout.EndHorizontal();
         }
@@ -543,7 +543,7 @@ public class Main : BaseUnityPlugin
             if (GUILayout.Button("T"))
                 TeleportPlayer(playerObj.transform.position);
             if (GUILayout.Button("K"))
-                playerObj.KillPlayer(Vector3.zero);
+                playerObj.DamagePlayerFromOtherClientServerRpc(playerObj.health, Vector3.zero, (int)playerObj.playerClientId);
 
             GUILayout.EndHorizontal();
         }
