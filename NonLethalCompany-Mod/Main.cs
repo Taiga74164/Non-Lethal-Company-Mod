@@ -52,9 +52,11 @@ public class Main : BaseUnityPlugin
     private bool _drawLine = true;
     private bool _drawDistance;
     private bool _drawName = true;
-    private bool _setESPEnemy = true;
-    private bool _setESPScrap = true;
+    private bool _setESPPlayer;
+    private bool _setESPEnemy;
+    private bool _setESPScrap;
 
+    private Vector2 ScreenScale, ScreenCenter;
     #endregion
 
     private void Awake()
@@ -154,6 +156,7 @@ public class Main : BaseUnityPlugin
         _setESP = GUILayout.Toggle(_setESP, "ESP");
         if (_setESP)
         {
+            _setESPPlayer = GUILayout.Toggle(_setESPPlayer, "ESP Player");
             _setESPEnemy = GUILayout.Toggle(_setESPEnemy, "ESP Enemy");
             _setESPScrap = GUILayout.Toggle(_setESPScrap, "ESP Scrap");
             _setESPColor = GUILayout.Toggle(_setESPColor, "Different ESP Color");
@@ -256,19 +259,25 @@ public class Main : BaseUnityPlugin
         if (camera == null)
             return;
 
-        var ScreenScale = new Vector2((float)Screen.width / camera.pixelWidth, (float)Screen.height / camera.pixelHeight);
-        var ScreenCenter = new Vector2((float)(Screen.width / 2), (float)(Screen.height - 1));
+        ScreenScale = new Vector2((float)Screen.width / camera.pixelWidth, (float)Screen.height / camera.pixelHeight);
+        ScreenCenter = new Vector2((float)(Screen.width / 2), (float)(Screen.height - 1));
 
+        if (_setESPScrap) 
+            ESPItem(player, camera);
+        if (_setESPEnemy) 
+            ESPEnemy(player, camera);
+        if (_setESPPlayer)
+            ESPPlayer(player, camera);
+    }
+
+    private void ESPItem(PlayerControllerB player, Camera camera)
+    {
         var propList = GameObject.FindObjectsOfType<GrabbableObject>();
         if (propList == null || propList.Length == 0)
             return;
 
-        var ScreenScale = new Vector2((float)Screen.width / camera.pixelWidth, (float)Screen.height / camera.pixelHeight);
-
         foreach (var prop in propList)
         {
-            if (!_setESPScrap) break;
-
             if (prop == null || prop.isHeld || !prop.grabbable || prop.isInShipRoom || prop.isInElevator)
                 continue;
 
@@ -283,7 +292,7 @@ public class Main : BaseUnityPlugin
             var distance = Vector3.Distance(player.transform.position, prop.transform.position);
 
             Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
-            Color color = _setESPColor ? Color.blue : Color.white;
+            Color color = _setESPColor ? Color.green : Color.white;
             
             string renderTxt = "";
             if (_drawName)
@@ -297,14 +306,16 @@ public class Main : BaseUnityPlugin
             if (_drawLine)
                 Render.DrawLine(ScreenCenter, vec2Pos, color, 2f);
         }
+    }
 
+    private void ESPEnemy(PlayerControllerB player, Camera camera)
+    {
         var enemyAIs = GameObject.FindObjectsOfType<EnemyAI>();
         if (enemyAIs == null)
             return;
 
         foreach (var enemy in enemyAIs)
         {
-            if (!_setESPEnemy) break;
 
             if (enemy == null || enemy.isEnemyDead)
                 continue;
@@ -321,6 +332,46 @@ public class Main : BaseUnityPlugin
 
             Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
             Color color = _setESPColor ? Color.red : Color.white;
+
+            string renderTxt = "";
+            if (_drawName)
+                renderTxt += actualName;
+
+            if (_drawDistance)
+                renderTxt += " | " + distance.ToString("F1") + "m";
+
+            if (renderTxt != "")
+                Render.DrawString(new Vector2(vec2Pos.x, vec2Pos.y - 20f), renderTxt, true);
+            if (_drawLine)
+                Render.DrawLine(ScreenCenter, vec2Pos, color, 2f);
+        }
+    }
+
+    private void ESPPlayer(PlayerControllerB player, Camera camera)
+    {
+        var allPlayerObjs = StartOfRound.Instance.allPlayerObjects;
+        if (allPlayerObjs == null)
+            return;
+
+        foreach (var allPlayerObj in allPlayerObjs)
+        {
+            var playerObj = allPlayerObj.GetComponent<PlayerControllerB>();
+            if (playerObj == null || playerObj.isPlayerDead || playerObj.IsOwner)
+                continue;
+
+            Vector3 pos = playerObj.transform.position;
+            Vector3 screenPos = camera.WorldToScreenPoint(pos);
+            if (!IsOnScreen(screenPos, camera))
+                continue;
+
+            var actualName = playerObj.playerUsername;
+            var distance = Vector3.Distance(playerObj.transform.position, player.transform.position);
+
+            if (actualName.Contains("Player #"))
+                continue;
+
+            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
+            Color color = _setESPColor ? Color.blue : Color.white;
 
             string renderTxt = "";
             if (_drawName)
