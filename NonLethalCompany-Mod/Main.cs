@@ -32,6 +32,10 @@ public class Main : BaseUnityPlugin
 
     public static bool NoInvisible;
 
+    public static bool PlayerDeadNotify;
+
+    public static bool EnableInvite;
+
     private bool _setUnlimitedSprint;
 
     private bool _setNoWeight;
@@ -64,6 +68,8 @@ public class Main : BaseUnityPlugin
         Logger.LogMessage("\u001b[31mMOD LOADED WOW!!!!!!!!!!!!!!\u001b[0m");
         Harmony.CreateAndPatchAll(typeof(PlayerControllerBPatch));
         Harmony.CreateAndPatchAll(typeof(EnemyAIPatch));
+        Harmony.CreateAndPatchAll(typeof(GameNetworkManagerPatch));
+        Harmony.CreateAndPatchAll(typeof(QuickMenuManagerPatch));
     }
 
     private void Start()
@@ -98,7 +104,6 @@ public class Main : BaseUnityPlugin
 
         GUILayout.BeginHorizontal();
         GUILayout.Label("Movement Speed: " + _movementSpeed);
-        _movementSpeed = GUILayout.HorizontalSlider(_movementSpeed, 4.6f, 100.0f);
         if (GUILayout.Button("Set Movement Speed"))
             HandleMovementSpeed();
         GUILayout.EndHorizontal();
@@ -147,9 +152,29 @@ public class Main : BaseUnityPlugin
 
         #endregion
 
+        #region Player Dead Notifier
+
+        PlayerDeadNotify = GUILayout.Toggle(PlayerDeadNotify, "Player Dead Notification");
+
+        #endregion
+
         #region No Invisible Enemy
 
         NoInvisible = GUILayout.Toggle(NoInvisible, "No Invisible Enemies");
+
+        #endregion
+
+        #region Enable Invite
+
+        EnableInvite = GUILayout.Toggle(EnableInvite, "Enable Invite & Join Mid-game");
+
+        #endregion
+
+        #region No Fog
+
+        var fogTxt = RenderSettings.fog ? "Disable" : "Enable";
+        if (GUILayout.Button($"{fogTxt} No Fog"))
+            HandleNoFog(!RenderSettings.fog);
 
         #endregion
 
@@ -536,6 +561,17 @@ public class Main : BaseUnityPlugin
         player.movementSpeed = _movementSpeed;
     }
 
+    private void HandleNoFog(bool enable)
+    {
+        GameObject system = GameObject.Find("Systems");
+
+        if (system == null)
+            return;
+
+        system.transform.Find("Rendering").Find("VolumeMain").gameObject.SetActive(!enable);
+        RenderSettings.fog = enable;
+    }
+
     private void HandleNoClip()
     {
         if (!IsInGameScene())
@@ -808,6 +844,27 @@ public class PlayerControllerBPatch
             return;
     }
 
+    [HarmonyPatch("KillPlayerClientRpc")]
+    [HarmonyPrefix]
+    private static void KillPlayerClientRpcPrefix(PlayerControllerB __instance, ref int playerId, ref int causeOfDeath)
+    {
+        if (Main.PlayerDeadNotify)
+        {
+            var player = __instance.playersManager.allPlayerObjects[playerId].GetComponent<PlayerControllerB>();
+            var HUD = HUDManager.Instance;
+            var txt = "<color=#FFFFFF>" + player.playerUsername + " dead by " + (CauseOfDeath)causeOfDeath + "</color>";
+            HUD.DisplayTip("Player Dead", txt);
+            HUD.ChatMessageHistory.Add(txt);
+            HUD.chatText.text += "\n" + txt;
+            while (HUD.ChatMessageHistory.Count >= 4)
+            {
+                HUD.chatText.text.Remove(0, 1);
+                HUD.ChatMessageHistory.Remove(HUD.ChatMessageHistory[0]);
+            }
+            HUD.PingHUDElement(HUD.Chat, 4f, 1f, 0.2f);
+        }
+    }
+
     [HarmonyPatch("AllowPlayerDeath")]
     [HarmonyPrefix]
     private static bool AllowPlayerDeathPrefix(PlayerControllerB __instance)
@@ -835,6 +892,47 @@ public class EnemyAIPatch
             return;
 
         enable = true;
+    }
+}
+
+[HarmonyPatch(typeof(GameNetworkManager))]
+public class GameNetworkManagerPatch
+{
+    [HarmonyPatch(nameof(GameNetworkManager.LeaveLobbyAtGameStart))]
+    [HarmonyPrefix]
+    private static bool LeaveLobbyAtGameStartPatch()
+    {
+        if (Main.EnableInvite) return false;
+        return true;
+    }
+}
+
+[HarmonyPatch(typeof(QuickMenuManager))]
+public class QuickMenuManagerPatch
+{
+    [HarmonyPatch(nameof(QuickMenuManager.InviteFriendsButton))]
+    [HarmonyPrefix]
+    private static bool InviteFriendsButtonPatch()
+    {
+        if (Main.EnableInvite)
+        {
+            GameNetworkManager.Instance.gameHasStarted = false;
+            GameNetworkManager.Instance.InviteFriendsUI();
+            return false;
+        }
+        return true;
+    }
+
+    [HarmonyPatch(nameof(QuickMenuManager.DisableInviteFriendsButton))]
+    [HarmonyPrefix]
+    private static bool DisableInviteFriendsButtonPatch()
+    {
+        if (Main.EnableInvite)
+        {
+            GameNetworkManager.Instance.gameHasStarted = false;
+            return false;
+        }
+        return true;
     }
 }
 
