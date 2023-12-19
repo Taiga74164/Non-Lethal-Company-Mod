@@ -79,7 +79,6 @@ public class Main : BaseUnityPlugin
         HandleUnlimitedSprint();
         HandleNoWeight();
         HandleGodMode();
-        HandleGrabDistance();
         HandleUnlimitedBatteries();
     }
 
@@ -97,10 +96,13 @@ public class Main : BaseUnityPlugin
         
         #region Movement Speed
 
+        GUILayout.BeginHorizontal();
         GUILayout.Label("Movement Speed: " + _movementSpeed);
         _movementSpeed = GUILayout.HorizontalSlider(_movementSpeed, 4.6f, 100.0f);
         if (GUILayout.Button("Set Movement Speed"))
             HandleMovementSpeed();
+        GUILayout.EndHorizontal();
+        _movementSpeed = GUILayout.HorizontalSlider(_movementSpeed, 4.6f, 100.0f);
 
         #endregion
 
@@ -169,7 +171,11 @@ public class Main : BaseUnityPlugin
 
         #region Grab Distance
 
+        GUILayout.BeginHorizontal();
         GUILayout.Label("Grab Distance: " + _grabDistance);
+        if (GUILayout.Button("Set Grab Distance"))
+            HandleGrabDistance();
+        GUILayout.EndHorizontal();
         _grabDistance = GUILayout.HorizontalSlider(_grabDistance, 5, 100);
 
         #endregion
