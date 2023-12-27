@@ -10,9 +10,7 @@ using UnityEngine.UI;
 
 namespace NonLethalCompany_Mod;
 
-[BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
-
-public class Main : BaseUnityPlugin
+public class Legacy : BaseUnityPlugin
 {
     #region GUI Properties
 
@@ -45,7 +43,7 @@ public class Main : BaseUnityPlugin
     private float _grabDistance = 5.0f;
 
     private string _credits = "0";
-    
+
     private bool _setUnlimitedBatteries;
 
     private bool _showRebind;
@@ -99,7 +97,7 @@ public class Main : BaseUnityPlugin
 
         GUILayout.BeginArea(new Rect(10, 40, 380, 700));
         _menuScrollPosition = GUILayout.BeginScrollView(_menuScrollPosition);
-        
+
         #region Movement Speed
 
         GUILayout.BeginHorizontal();
@@ -147,7 +145,7 @@ public class Main : BaseUnityPlugin
         #endregion
 
         #region Unlimited Batteries
-        
+
         _setUnlimitedBatteries = GUILayout.Toggle(_setUnlimitedBatteries, "Unlimited Batteries");
 
         #endregion
@@ -213,7 +211,7 @@ public class Main : BaseUnityPlugin
             HandleCredits();
 
         #endregion
-        
+
         #region Key Rebinding
 
         var rebindText = _showRebind ? "Hide" : "Show";
@@ -257,7 +255,7 @@ public class Main : BaseUnityPlugin
         GUILayout.Space(10.0f);
 
         #endregion
-        
+
         #region Player List
 
         GUILayout.Space(10.0f);
@@ -293,9 +291,9 @@ public class Main : BaseUnityPlugin
         ScreenScale = new Vector2((float)Screen.width / camera.pixelWidth, (float)Screen.height / camera.pixelHeight);
         ScreenCenter = new Vector2((float)(Screen.width / 2), (float)(Screen.height - 1));
 
-        if (_setESPScrap) 
+        if (_setESPScrap)
             ESPItem(player, camera);
-        if (_setESPEnemy) 
+        if (_setESPEnemy)
             ESPEnemy(player, camera);
         if (_setESPPlayer)
             ESPPlayer(player, camera);
@@ -324,7 +322,7 @@ public class Main : BaseUnityPlugin
 
             Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
             Color color = _setESPColor ? Color.green : Color.white;
-            
+
             string renderTxt = "";
             if (_drawName)
                 renderTxt += actualName;
@@ -425,7 +423,7 @@ public class Main : BaseUnityPlugin
         GUILayout.Label("Distance(m)", GUILayout.MinWidth(20));
         GUILayout.Label("Value", GUILayout.MinWidth(30));
         GUILayout.EndHorizontal();
-        
+
         // GUILayout.BeginHorizontal("Options");
         // _showInShip = GUILayout.Toggle(_showInShip, "Show In Ship");
         // _showHeld = GUILayout.Toggle(_showHeld, "Show Held");
@@ -487,11 +485,11 @@ public class Main : BaseUnityPlugin
         {
             if (enemy == null || enemy.isEnemyDead)
                 continue;
-            
+
             var player = GameNetworkManager.Instance.localPlayerController;
             if (player == null)
                 continue;
-            
+
             var scanNodeComp = enemy.GetComponentInChildren<ScanNodeProperties>();
 
             var actualName = scanNodeComp ? scanNodeComp.headerText : enemy.enemyType.enemyName;
@@ -520,7 +518,7 @@ public class Main : BaseUnityPlugin
         var allPlayerObjs = StartOfRound.Instance.allPlayerObjects;
         if (allPlayerObjs == null)
             return;
-        
+
         foreach (var allPlayerObj in allPlayerObjs)
         {
             var playerObj = allPlayerObj.GetComponent<PlayerControllerB>();
@@ -536,7 +534,7 @@ public class Main : BaseUnityPlugin
 
             if (actualName.Contains("Player #"))
                 continue;
-            
+
             GUILayout.BeginHorizontal();
             GUILayout.Label(actualName, GUILayout.MinWidth(120));
             GUILayout.Label(distance.ToString("F2"), GUILayout.MinWidth(50));
@@ -683,7 +681,7 @@ public class Main : BaseUnityPlugin
 
         player.isPlayerDead = false;
     }
-    
+
     private void HandleUnlimitedBatteries()
     {
         if (!IsInGameScene())
@@ -700,14 +698,14 @@ public class Main : BaseUnityPlugin
         {
             if (grabbableObj == null)
                 continue;
-            
+
             var player = GameNetworkManager.Instance.localPlayerController;
             if (player == null)
                 continue;
 
             if (!grabbableObj.itemProperties.requiresBattery || grabbableObj.playerHeldBy != player)
                 continue;
-            
+
             grabbableObj.insertedBattery.empty = false;
             grabbableObj.insertedBattery.charge = 1.0f;
         }
@@ -827,7 +825,7 @@ public class PlayerControllerBPatch
     [HarmonyPrefix]
     private static void DamagePlayerPrefix(ref int damageNumber, ref CauseOfDeath causeOfDeath, ref bool fallDamage)
     {
-        if (!Main.SetNoFallDamage)
+        if (!Legacy.SetNoFallDamage)
             return;
 
         if (!fallDamage && causeOfDeath != CauseOfDeath.Gravity)
@@ -840,7 +838,7 @@ public class PlayerControllerBPatch
     [HarmonyPrefix]
     private static void KillPlayerPrefix(ref CauseOfDeath causeOfDeath)
     {
-        if (Main.SetGodMode && causeOfDeath is CauseOfDeath.Suffocation or CauseOfDeath.Drowning)
+        if (Legacy.SetGodMode && causeOfDeath is CauseOfDeath.Suffocation or CauseOfDeath.Drowning)
             return;
     }
 
@@ -848,7 +846,7 @@ public class PlayerControllerBPatch
     [HarmonyPrefix]
     private static void KillPlayerClientRpcPrefix(PlayerControllerB __instance, ref int playerId, ref int causeOfDeath)
     {
-        if (Main.PlayerDeadNotify)
+        if (Legacy.PlayerDeadNotify)
         {
             var player = __instance.playersManager.allPlayerObjects[playerId].GetComponent<PlayerControllerB>();
             var HUD = HUDManager.Instance;
@@ -869,7 +867,7 @@ public class PlayerControllerBPatch
     [HarmonyPrefix]
     private static bool AllowPlayerDeathPrefix(PlayerControllerB __instance)
     {
-        if (Main.SetGodMode)
+        if (Legacy.SetGodMode)
             return false;
 
         // var originalMethod = AccessTools.Method(typeof(PlayerControllerB), "AllowPlayerDeath");
@@ -888,7 +886,7 @@ public class EnemyAIPatch
     [HarmonyPrefix]
     private static void EnableEnemyMeshPrefix(ref bool enable)
     {
-        if (!Main.NoInvisible)
+        if (!Legacy.NoInvisible)
             return;
 
         enable = true;
@@ -902,7 +900,7 @@ public class GameNetworkManagerPatch
     [HarmonyPrefix]
     private static bool LeaveLobbyAtGameStartPatch()
     {
-        if (Main.EnableInvite) return false;
+        if (Legacy.EnableInvite) return false;
         return true;
     }
 }
@@ -914,7 +912,7 @@ public class QuickMenuManagerPatch
     [HarmonyPrefix]
     private static bool InviteFriendsButtonPatch()
     {
-        if (Main.EnableInvite)
+        if (Legacy.EnableInvite)
         {
             GameNetworkManager.Instance.gameHasStarted = false;
             GameNetworkManager.Instance.InviteFriendsUI();
@@ -927,7 +925,7 @@ public class QuickMenuManagerPatch
     [HarmonyPrefix]
     private static bool DisableInviteFriendsButtonPatch()
     {
-        if (Main.EnableInvite)
+        if (Legacy.EnableInvite)
         {
             GameNetworkManager.Instance.gameHasStarted = false;
             return false;
