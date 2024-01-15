@@ -17,12 +17,15 @@
 - Unlimited Sprint
 - No Weight
 - God Mode
+- Unlimited Batteries (flashlight)
+- Player Dead Notification
 - No Invisible Enemies (Ghost Girl)
 - ESP
 - Grab Distance
 - Terminal Credits
 - Scrap List: Teleport to scraps / Change scrap value
 - Enemy List: Teleport to enemy / Kill enemy
+- Player List: Teleport to player / Kill players
 
 ## Building
 
