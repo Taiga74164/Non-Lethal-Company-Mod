@@ -7,6 +7,7 @@
 ### Usage
 
 1. Put DLL inside `\BepInEx\plugins`
+2. Press Insert key to open the menu.
 
 ### Features
 
@@ -30,3 +31,5 @@
    2. `Unity.Netcode.Runtime.dll`
 2. Restore NuGet packages
 3. Build
+
+[Thunderstore](https://thunderstore.io/c/lethal-company/create/old/)
