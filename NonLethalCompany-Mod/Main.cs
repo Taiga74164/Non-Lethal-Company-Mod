@@ -236,10 +236,14 @@ public class Main : BaseUnityPlugin
         GUILayout.Label("Scrap List: (T: Teleport), (+/-: Change Value)");
 
         _scrapListScrollPosition = GUILayout.BeginScrollView(_scrapListScrollPosition, GUILayout.Height(100));
+        
         GUILayout.BeginVertical();
         DrawScrapTable();
         GUILayout.EndVertical();
         GUILayout.EndScrollView();
+        // Seems like collider must be disabled and player must go through the door for items to be dropped.
+        if (GUILayout.Button("Teleport to Ship"))
+            TeleportPlayer(StartOfRound.Instance.shipDoorNode.transform.position);// StartCoroutine(TeleportToShipCoroutine());
         GUILayout.Space(10.0f);
 
         #endregion
@@ -465,10 +469,6 @@ public class Main : BaseUnityPlugin
 
             GUILayout.EndHorizontal();
         }
-
-        // Seems like collider must be disabled and player must go through the door for items to be dropped.
-        if (GUILayout.Button("Teleport to Ship"))
-            TeleportPlayer(StartOfRound.Instance.shipDoorNode.transform.position);// StartCoroutine(TeleportToShipCoroutine());
     }
 
     private void DrawEnemyTable()
@@ -504,7 +504,7 @@ public class Main : BaseUnityPlugin
                 TeleportPlayer(enemy.transform.position);
             if (GUILayout.Button("K"))
                 enemy.KillEnemyServerRpc(false);
-
+            
             GUILayout.EndHorizontal();
         }
     }
@@ -571,7 +571,7 @@ public class Main : BaseUnityPlugin
         system.transform.Find("Rendering").Find("VolumeMain").gameObject.SetActive(!enable);
         RenderSettings.fog = enable;
     }
-
+    
     private void HandleNoClip()
     {
         if (!IsInGameScene())

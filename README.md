@@ -20,6 +20,8 @@
 - Unlimited Batteries (flashlight)
 - Player Dead Notification
 - No Invisible Enemies (Ghost Girl)
+- Enable Invite & Join Mid-game
+- No Fog
 - ESP
 - Grab Distance
 - Terminal Credits
