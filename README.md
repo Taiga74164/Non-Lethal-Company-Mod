@@ -37,4 +37,4 @@
 2. Restore NuGet packages
 3. Build
 
-[Thunderstore](https://thunderstore.io/c/lethal-company/create/old/)
+[Thunderstore](https://thunderstore.io/c/lethal-company/p/Taiga74164/Non_Lethal_Company/)
