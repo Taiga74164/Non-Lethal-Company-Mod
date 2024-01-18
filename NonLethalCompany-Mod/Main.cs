@@ -3,6 +3,7 @@ using System.Reflection;
 using BepInEx;
 using HarmonyLib;
 using GameNetcodeStuff;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -59,6 +60,7 @@ public class Main : BaseUnityPlugin
     private bool _setESPPlayer;
     private bool _setESPEnemy;
     private bool _setESPScrap;
+    private bool _setESPMisc;
 
     private Vector2 ScreenScale, ScreenCenter;
     #endregion
@@ -186,6 +188,7 @@ public class Main : BaseUnityPlugin
             _setESPPlayer = GUILayout.Toggle(_setESPPlayer, "ESP Player");
             _setESPEnemy = GUILayout.Toggle(_setESPEnemy, "ESP Enemy");
             _setESPScrap = GUILayout.Toggle(_setESPScrap, "ESP Scrap");
+            _setESPMisc = GUILayout.Toggle(_setESPMisc, "ESP Misc");
             _setESPColor = GUILayout.Toggle(_setESPColor, "Different ESP Color");
             _drawLine = GUILayout.Toggle(_drawLine, "Draw Line");
             _drawName = GUILayout.Toggle(_drawName, "Draw Name");
@@ -303,6 +306,8 @@ public class Main : BaseUnityPlugin
             ESPEnemy(player, camera);
         if (_setESPPlayer)
             ESPPlayer(player, camera);
+        if (_setESPMisc)
+            ESPMisc(player, camera);
     }
 
     private void ESPItem(PlayerControllerB player, Camera camera)
@@ -415,6 +420,46 @@ public class Main : BaseUnityPlugin
             if (_drawDistance)
                 renderTxt += " | " + distance.ToString("F1") + "m";
 
+            if (renderTxt != "")
+                Render.DrawString(new Vector2(vec2Pos.x, vec2Pos.y - 20f), renderTxt, true);
+            if (_drawLine)
+                Render.DrawLine(ScreenCenter, vec2Pos, color, 2f);
+        }
+    }
+    
+    private void ESPMisc(PlayerControllerB player, Camera camera)
+    {
+        var turrets = GameObject.FindObjectsOfType<Turret>();
+        if (turrets == null || turrets.Length == 0)
+            return;
+        
+        var landmines = GameObject.FindObjectsOfType<Landmine>();
+        if (landmines == null || landmines.Length == 0)
+            return;
+
+        var list = new List<NetworkBehaviour>();
+        list.AddRange(turrets);
+        list.AddRange(landmines);
+        
+        foreach (var obj in list)
+        {
+            Vector3 pos = obj.transform.position;
+            Vector3 screenPos = camera.WorldToScreenPoint(pos);
+            if (!IsOnScreen(screenPos, camera))
+                continue;
+            
+            var distance = Vector3.Distance(player.transform.position, obj.transform.position);
+            
+            Vector2 vec2Pos = new Vector2(screenPos.x * ScreenScale.x, (float)Screen.height - (screenPos.y * ScreenScale.y));
+            Color color = _setESPColor ? Color.yellow : Color.white;
+            
+            string renderTxt = "";
+            if (_drawName)
+                renderTxt += obj is Turret turret ? "Turret" : obj.name;
+            
+            if (_drawDistance)
+                renderTxt += " | " + distance.ToString("F1") + "m";
+            
             if (renderTxt != "")
                 Render.DrawString(new Vector2(vec2Pos.x, vec2Pos.y - 20f), renderTxt, true);
             if (_drawLine)
@@ -876,7 +921,6 @@ public class PlayerControllerBPatch
     }
 }
 
-
 [HarmonyPatch(typeof(EnemyAI))]
 public class EnemyAIPatch
 {
@@ -889,6 +933,22 @@ public class EnemyAIPatch
 
         enable = true;
     }
+
+    // [HarmonyPatch(nameof(EnemyAI.PlayerIsTargetable))]
+    // [HarmonyPrefix]
+    // public static bool PlayerIsTargetablePrefix(ref bool __result, ref PlayerControllerB playerScript)
+    // {
+    //     // return true; -> call original method
+    //     // return false; -> no original
+    //     
+    //     if (playerScript == GameNetworkManager.Instance.localPlayerController)
+    //     {
+    //         __result = false;
+    //         return false;
+    //     }
+    //
+    //     return true;
+    // }
 }
 
 [HarmonyPatch(typeof(GameNetworkManager))]
