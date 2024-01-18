@@ -268,7 +268,7 @@ public class Main : BaseUnityPlugin
         #region Player List
 
         GUILayout.Space(10.0f);
-        GUILayout.Label("Player List: (T: Teleport)");
+        GUILayout.Label("Player List: (T: Teleport), (K: Kill), (R: Revive)");
 
         _playerListScrollPosition = GUILayout.BeginScrollView(_playerListScrollPosition, GUILayout.Height(100));
         GUILayout.BeginVertical();
@@ -569,7 +569,7 @@ public class Main : BaseUnityPlugin
         foreach (var allPlayerObj in allPlayerObjs)
         {
             var playerObj = allPlayerObj.GetComponent<PlayerControllerB>();
-            if (playerObj == null || playerObj.isPlayerDead || playerObj.IsOwner)
+            if (playerObj == null)
                 continue;
 
             var player = GameNetworkManager.Instance.localPlayerController;
@@ -583,13 +583,15 @@ public class Main : BaseUnityPlugin
                 continue;
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(actualName, GUILayout.MinWidth(120));
+            GUILayout.Label($"{actualName} {(playerObj.isPlayerDead ? "<color=red>(Dead)</color>" : "")}", GUILayout.MinWidth(120));
             GUILayout.Label(distance.ToString("F2"), GUILayout.MinWidth(50));
             if (GUILayout.Button("T"))
                 TeleportPlayer(playerObj.transform.position);
             if (GUILayout.Button("K"))
                 playerObj.DamagePlayerFromOtherClientServerRpc(playerObj.health, Vector3.zero, (int)playerObj.playerClientId);
-
+            if (playerObj.IsOwner && playerObj.isPlayerDead && GUILayout.Button("R"))
+                StartOfRound.Instance.ReviveDeadPlayers();
+            
             GUILayout.EndHorizontal();
         }
     }
