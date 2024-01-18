@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace NonLethalCompany_Mod;
 
@@ -21,6 +22,7 @@ public class Main : BaseUnityPlugin
     private Vector2 _scrapListScrollPosition = Vector2.zero;
     private Vector2 _enemyListScrollPosition = Vector2.zero;
     private Vector2 _playerListScrollPosition = Vector2.zero;
+    private Vector2 _inventorySetsScrollPosition = Vector2.zero;
 
     private float _movementSpeed = 4.6f;
 
@@ -39,6 +41,8 @@ public class Main : BaseUnityPlugin
     private bool _setUnlimitedSprint;
 
     private bool _setNoWeight;
+
+    private bool _handsFree;
 
     public static bool SetGodMode;
 
@@ -61,6 +65,9 @@ public class Main : BaseUnityPlugin
     private bool _setESPScrap;
 
     private Vector2 ScreenScale, ScreenCenter;
+
+    private List<ItemSet> _inventorySets = new();
+
     #endregion
 
     private void Awake()
@@ -86,6 +93,7 @@ public class Main : BaseUnityPlugin
         HandleNoWeight();
         HandleGodMode();
         HandleUnlimitedBatteries();
+        HandleHandsFree();
     }
 
     private void OnGUI()
@@ -140,6 +148,12 @@ public class Main : BaseUnityPlugin
 
         #endregion
 
+        #region Hands Free
+
+        _handsFree = GUILayout.Toggle(_handsFree, "Hands Free");
+
+        #endregion
+
         #region God Mode
 
         SetGodMode = GUILayout.Toggle(SetGodMode, "God Mode");
@@ -175,6 +189,16 @@ public class Main : BaseUnityPlugin
         var fogTxt = RenderSettings.fog ? "Disable" : "Enable";
         if (GUILayout.Button($"{fogTxt} No Fog"))
             HandleNoFog(!RenderSettings.fog);
+
+        #endregion
+
+        #region Entrance Teleport
+
+        if (GUILayout.Button("Teleport to Front"))
+        {
+            var entrance = GameUtils.FindEntrancePoint();
+            if (entrance) TeleportPlayer(entrance!.position);
+        }
 
         #endregion
 
@@ -275,6 +299,26 @@ public class Main : BaseUnityPlugin
         GUILayout.Space(10.0f);
 
         #endregion
+
+        // #region Inventory Sets
+        //
+        // GUILayout.Space(10f);
+        // GUILayout.Label("Inventory Sets:");
+        //
+        // _inventorySetsScrollPosition = GUILayout.BeginScrollView(
+        //     _inventorySetsScrollPosition, GUILayout.Height(100));
+        //
+        // GUILayout.BeginVertical();
+        //
+        // DrawInventorySets();
+        //
+        // GUILayout.EndVertical();
+        //
+        // GUILayout.EndScrollView();
+        //
+        // GUILayout.Space(10f);
+        //
+        // #endregion
 
         GUILayout.EndScrollView();
         GUILayout.EndArea();
@@ -549,6 +593,61 @@ public class Main : BaseUnityPlugin
         }
     }
 
+    private void DrawInventorySets()
+    {
+        if (GUILayout.Button("Store Current Set"))
+        {
+            var player = GameNetworkManager.Instance.localPlayerController;
+            if (!player) return;
+
+            var hud = HUDManager.Instance;
+
+            _inventorySets.Add(new ItemSet
+            {
+                TwoHanded = player.twoHanded,
+                Index = player.currentItemSlot,
+                Items = player.ItemSlots,
+                Icons = HUDManager.Instance.itemSlotIcons,
+                Frames = HUDManager.Instance.itemSlotIconFrames
+            });
+
+            player.ItemSlots = new GrabbableObject[player.ItemSlots.Length];
+            hud.itemSlotIcons = new Image[hud.itemSlotIcons.Length];
+            hud.itemSlotIconFrames = new Image[hud.itemSlotIconFrames.Length];
+            player.currentItemSlot = 0;
+            player.twoHanded = false;
+
+            var method = AccessTools.Method(typeof(PlayerControllerB), "SwitchToItemSlot");
+            method.Invoke(player, new object?[] { 0, null });
+
+            return;
+        }
+
+        var clone = new List<ItemSet>(_inventorySets);
+        foreach (var set in clone)
+        {
+            if (!GUILayout.Button("Set " + (_inventorySets.IndexOf(set) + 1))) continue;
+
+            // Recall the inventory set.
+            var player = GameNetworkManager.Instance.localPlayerController;
+            if (!player) return;
+
+            var hud = HUDManager.Instance;
+
+            player.ItemSlots = set.Items;
+            hud.itemSlotIcons = set.Icons;
+            hud.itemSlotIconFrames = set.Frames;
+            player.currentItemSlot = set.Index;
+            player.twoHanded = set.TwoHanded;
+
+            // Remove the inventory set from the list.
+            _inventorySets.Remove(set);
+
+            var method = AccessTools.Method(typeof(PlayerControllerB), "SwitchToItemSlot");
+            method.Invoke(player, new object?[] { player.currentItemSlot, null });
+        }
+    }
+
     private void HandleMovementSpeed()
     {
         if (!IsInGameScene())
@@ -711,6 +810,16 @@ public class Main : BaseUnityPlugin
             grabbableObj.insertedBattery.empty = false;
             grabbableObj.insertedBattery.charge = 1.0f;
         }
+    }
+
+    private void HandleHandsFree()
+    {
+        if (!_handsFree || !IsInGameScene()) return;
+
+        var player = GameNetworkManager.Instance.localPlayerController;
+        if (!player) return;
+
+        player.twoHanded = false;
     }
 
     private void HandleGrabDistance()
@@ -937,6 +1046,19 @@ public static class Constants
     public const string LaunchOptionsScene = "InitSceneLaunchOptions";
 }
 
+public static class GameUtils
+{
+    /// <summary>
+    /// Attempts to locate the entrance point.
+    /// </summary>
+    /// <returns>A transform of the exit point, or null if we can't find it.</returns>
+    public static Transform? FindEntrancePoint()
+    {
+        var objectsOfType = Object.FindObjectsOfType<EntranceTeleport>();
+        return objectsOfType.Length == 0 ? null : objectsOfType[0].entrancePoint;
+    }
+}
+
 public static class SceneUtils
 {
     /// <summary>
@@ -1025,4 +1147,12 @@ public static class InputUtils
             rebind.Dispose();
         });
     }
+}
+
+public struct ItemSet
+{
+    public int Index;
+    public bool TwoHanded;
+    public GrabbableObject[] Items;
+    public Image[] Icons, Frames;
 }
